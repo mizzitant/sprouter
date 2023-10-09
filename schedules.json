@@ -1,0 +1,19 @@
+{
+  "schedules": [
+    {
+      "starttime": "15:59:40",
+      "duration": "00:00:20",
+      "device": "V1"
+    },
+    {
+      "starttime": "16:00:00",
+      "duration": "00:04:00",
+      "device": "P1"
+    },
+    {
+      "starttime": "16:00:10",
+      "duration": "00:04:05",
+      "device": "V1"
+    }
+  ]
+}
