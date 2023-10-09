@@ -37,8 +37,9 @@ class Event(NamedTuple):
 
 
 class DeviceState:
-    device: Device
-    state: State
+    def __init__(self, device: Device, state: State):
+        self.device = device
+        self.state = state
 
 
 def time_in_range(start: time, end: time, x: time) -> bool:
@@ -93,7 +94,7 @@ for schedule in schedules['schedules']:
                         )
                   )
 
-events.sort(key=lambda e: e.time)
+events.sort(key=lambda e: e.start_time)
 
 print(events)
 
@@ -119,3 +120,4 @@ def print_hi(name):
 
 if __name__ == '__main__':
     print_hi('there')
+
