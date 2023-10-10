@@ -107,8 +107,10 @@ while True:
             if time_in_range(event.start_time, event.end_time, now):
                 if device_states.get(event.device).state == State.TURNED_OFF:
                     turn_on_device(device_states.get(event.device))
-            elif device_states.get(event.device).state == State.TURNED_ON:
-                turn_off_device(device_states.get(event.device))
+        if event.action == Action.TURN_OFF:
+            if not time_in_range(event.start_time, event.end_time, now):
+                if device_states.get(event.device).state == State.TURNED_ON:
+                    turn_off_device(device_states.get(event.device))
         # ToDo: get the time till the next event and set the process to sleep accordingly
 
     time.sleep(2)
