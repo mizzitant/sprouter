@@ -8,9 +8,9 @@ from typing import NamedTuple, Dict
 
 class AbstractEnum(enum.Enum):
     @classmethod
-    def get_from_code(cls, entry_id: str):
+    def get_from_code(cls, entry_code: str):
         for enum_entry in cls:
-            if entry_id == enum_entry.value:
+            if entry_code == enum_entry.value:
                 return enum_entry
 
 
@@ -50,15 +50,16 @@ def time_in_range(start: time, end: time, x: time) -> bool:
         return start <= x or x <= end
 
 
-def turn_on_device(device: Device, device_states: Dict[Device, DeviceState]):
+def turn_on_device(device_state: DeviceState):
     """Turn on the specified device"""
     None
+    device_state.state = State.TURNED_ON
 
 
-def turn_off_device(device: Device, device_states: Dict[Device, DeviceState]):
+def turn_off_device(device_state: DeviceState):
     """Turn off the specified device"""
     None
-
+    device_state.state = State.TURNED_OFF
 
 
 # load the schedules
@@ -105,9 +106,9 @@ while True:
         if event.action == Action.TURN_ON:
             if time_in_range(event.start_time, event.end_time, now):
                 if device_states.get(event.device).state == State.TURNED_OFF:
-                    turn_on_device(event.device, device_states)
+                    turn_on_device(device_states.get(event.device))
             elif device_states.get(event.device).state == State.TURNED_ON:
-                turn_off_device(event.device, device_states)
+                turn_off_device(device_states.get(event.device))
         # ToDo: get the time till the next event and set the process to sleep accordingly
 
     time.sleep(2)
