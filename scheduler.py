@@ -3,7 +3,7 @@ import json
 import datetime as dt
 import time
 
-from typing import NamedTuple, Dict
+from typing import NamedTuple, Dict, Optional
 
 
 class AbstractEnum(enum.Enum):
@@ -31,7 +31,7 @@ class State(AbstractEnum):
 
 class Event(NamedTuple):
     start_time: dt.time
-    end_time: dt.time | None
+    end_time: Optional[dt.time]  # dt.time | Any
     device: Device
     action: Action
 
@@ -74,6 +74,30 @@ def turn_off_device(device_state: DeviceState):
     device_state.state = State.TURNED_OFF
 
 
+def build_eventlist_from_schedules(schedules) -> list[Event]:
+    """build eventlist from configured schedules, ordered by time"""
+    for schedule in schedules['schedules']:
+        start_time = dt.datetime.strptime(schedule['starttime'], '%H:%M:%S').time()
+        dur = dt.datetime.strptime(schedule['duration'], '%H:%M:%S')
+        td = dt.timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
+        end_time = dt.datetime.combine(dt.date.today(), start_time) + td
+
+        events.append(Event(start_time=start_time,
+                            end_time=end_time.time(),
+                            device=Device.get_from_code(schedule["device"]),
+                            action=Action.TURN_ON
+                            )
+                      )
+        events.append(Event(start_time=end_time.time(),  # does not work if the endtime is on the next day
+                            end_time=None,
+                            device=Device.get_from_code(schedule["device"]),
+                            action=Action.TURN_OFF
+                            )
+                      )
+
+    return events.sort(key=lambda e: e.start_time)
+
+
 # load the schedules
 with open("schedules.json", "r") as f:
     schedules = json.load(f)
@@ -85,29 +109,9 @@ device_states = {
 }
 
 events: list[Event] = []
-
 # build eventlist from configured schedules, ordered by time
 # why? in order to know how long the process can sleep till the next event
-for schedule in schedules['schedules']:
-    start_time = dt.datetime.strptime(schedule['starttime'], '%H:%M:%S').time()
-    dur = dt.datetime.strptime(schedule['duration'], '%H:%M:%S')
-    td = dt.timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
-    end_time = dt.datetime.combine(dt.date.today(), start_time) + td
-
-    events.append(Event(start_time=start_time,
-                        end_time=end_time.time(),
-                        device=Device.get_from_code(schedule["device"]),
-                        action=Action.TURN_ON
-                        )
-                  )
-    events.append(Event(start_time=end_time.time(),  # does not work if the endtime is on the next day
-                        end_time=None,
-                        device=Device.get_from_code(schedule["device"]),
-                        action=Action.TURN_OFF
-                        )
-                  )
-
-events.sort(key=lambda e: e.start_time)
+events = build_eventlist_from_schedules(schedules)
 
 print(events)
 
