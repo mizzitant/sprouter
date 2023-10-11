@@ -52,12 +52,12 @@ def time_in_range(start: time, end: time, x: time) -> bool:
 
 def time_till_next_event(events: list[Event]):
     """calculate the time from now till the next closest event"""
-    next_sleep_interval = dt.timedelta(microseconds=0)
+    next_sleep_interval = dt.timedelta(hours=24)
     for event in events:
         now = dt.datetime.now()
         event_time = dt.datetime.combine(dt.date.today(), event.start_time)
         time_diff = event_time - now
-        if time_diff > next_sleep_interval:
+        if time_diff < next_sleep_interval:
             next_sleep_interval = time_diff
     return next_sleep_interval.total_seconds()
 
