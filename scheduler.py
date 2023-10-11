@@ -1,32 +1,11 @@
-import enum
 import json
 import datetime as dt
 import time
 
 from typing import NamedTuple, Dict, Optional
 
-
-class AbstractEnum(enum.Enum):
-    @classmethod
-    def get_from_code(cls, entry_code: str):
-        for enum_entry in cls:
-            if entry_code == enum_entry.value:
-                return enum_entry
-
-
-class Action(AbstractEnum):
-    TURN_ON = "1"
-    TURN_OFF = "2"
-
-
-class Device(AbstractEnum):
-    PUMP_1 = "P1"
-    VENT_1 = "V1"
-
-
-class State(AbstractEnum):
-    TURNED_ON = "ON"
-    TURNED_OFF = "OFF"
+from device_handler import Action, Device, DeviceState, State
+from device_handler import turn_on_device, turn_off_device
 
 
 class Event(NamedTuple):
@@ -34,12 +13,6 @@ class Event(NamedTuple):
     end_time: Optional[dt.time]  # dt.time | Any
     device: Device
     action: Action
-
-
-class DeviceState:
-    def __init__(self, device: Device, state: State):
-        self.device = device
-        self.state = state
 
 
 def time_in_range(start: time, end: time, x: time) -> bool:
@@ -52,30 +25,22 @@ def time_in_range(start: time, end: time, x: time) -> bool:
 
 def time_till_next_event(events: list[Event]):
     """calculate the time from now till the next closest event"""
-    next_sleep_interval = dt.timedelta(hours=24)
+    # max sleeping intervall is from now till next day
+    next_sleep_interval = dt.timedelta(hours=24)- dt.datetime.now()
+    
     for event in events:
         now = dt.datetime.now()
         event_time = dt.datetime.combine(dt.date.today(), event.start_time)
         time_diff = event_time - now
-        if time_diff < next_sleep_interval:
-            next_sleep_interval = time_diff
+        if time_diff.total_seconds() > 0:
+            if time_diff < next_sleep_interval:
+                next_sleep_interval = time_diff
     return next_sleep_interval.total_seconds()
-
-
-def turn_on_device(device_state: DeviceState):
-    """Turn on the specified device"""
-    None
-    device_state.state = State.TURNED_ON
-
-
-def turn_off_device(device_state: DeviceState):
-    """Turn off the specified device"""
-    None
-    device_state.state = State.TURNED_OFF
 
 
 def build_eventlist_from_schedules(schedules) -> list[Event]:
     """build eventlist from configured schedules, ordered by time"""
+    events: list[Event] = []
     for schedule in schedules['schedules']:
         start_time = dt.datetime.strptime(schedule['starttime'], '%H:%M:%S').time()
         dur = dt.datetime.strptime(schedule['duration'], '%H:%M:%S')
@@ -94,13 +59,9 @@ def build_eventlist_from_schedules(schedules) -> list[Event]:
                             action=Action.TURN_OFF
                             )
                       )
+    events.sort(key=lambda e: e.start_time)
+    return events
 
-    return events.sort(key=lambda e: e.start_time)
-
-
-# load the schedules
-with open("schedules.json", "r") as f:
-    schedules = json.load(f)
 
 # init
 device_states = {
@@ -108,15 +69,17 @@ device_states = {
     Device.VENT_1: DeviceState(device=Device.VENT_1, state=State.TURNED_OFF),
 }
 
-events: list[Event] = []
-# build eventlist from configured schedules, ordered by time
-# why? in order to know how long the process can sleep till the next event
-events = build_eventlist_from_schedules(schedules)
 
-print(events)
-
-
+events: list[Event] = None
 while True:
+    # load the schedules
+    with open("schedules.json", "r") as f:
+        schedules = json.load(f)
+
+    # build eventlist from configured schedules, ordered by time
+    # why? in order to know how long the process can sleep till the next event
+    events = build_eventlist_from_schedules(schedules)
+    
     now = dt.datetime.now().time()
     for event in events:
         if event.action == Action.TURN_ON:  # TURN_ON has start and end time
@@ -139,3 +102,4 @@ def print_hi(name):
 
 if __name__ == '__main__':
     print_hi('there')
+
