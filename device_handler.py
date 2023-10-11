@@ -1,116 +1,104 @@
-import json
-import datetime as dt
+import enum
+import RPi.GPIO as GPIO
 import time
 
-from typing import NamedTuple, Dict, Optional
 
-from device_handler import Action, Device, DeviceState, State
-
-
-class Event(NamedTuple):
-    start_time: dt.time
-    end_time: Optional[dt.time]  # dt.time | Any
-    device: Device
-    action: Action
+class AbstractEnum(enum.Enum):
+    @classmethod
+    def get_from_code(cls, entry_code: str):
+        for enum_entry in cls:
+            if entry_code == enum_entry.value[0]:
+                return enum_entry
 
 
-def time_in_range(start: time, end: time, x: time) -> bool:
-    """Return true if x is in the range [start, end]"""
-    if start <= end:
-        return start <= x <= end
-    else:  # end is on the next day
-        return start <= x or x <= end
+class Action(AbstractEnum):
+    TURN_ON = ("1", )
+    TURN_OFF = ("2", )
 
 
-def time_till_next_event(events: list[Event]):
-    """calculate the time from now till the next closest event"""
-    # max sleeping intervall is from now till next day
-    next_sleep_interval = dt.timedelta(hours=24)- dt.datetime.now()
-    
-    for event in events:
-        now = dt.datetime.now()
-        event_time = dt.datetime.combine(dt.date.today(), event.start_time)
-        time_diff = event_time - now
-        if time_diff.total_seconds() > 0:
-            if time_diff < next_sleep_interval:
-                next_sleep_interval = time_diff
-    return next_sleep_interval.total_seconds()
+"""
+,--------------------------------.
+| oooooooooooooooooooo J8     +====
+| 1ooooooooooooooooooo        | USB
+|                             +====
+|      Pi Model 3B  V1.2         |
+|      +----+                 +====
+| |D|  |SoC |                 | USB
+| |S|  |    |                 +====
+| |I|  +----+                    |
+|                   |C|     +======
+|                   |S|     |   Net
+| pwr        |HDMI| |I||A|  +======
+`-| |--------|    |----|V|-------'
+
+J8:
+   3V3  (1) (2)  5V    
+ GPIO2  (3) (4)  5V    
+ GPIO3  (5) (6)  GND   
+ GPIO4  (7) (8)  GPIO14
+   GND  (9) (10) GPIO15
+GPIO17 (11) (12) GPIO18
+GPIO27 (13) (14) GND   
+GPIO22 (15) (16) GPIO23
+   3V3 (17) (18) GPIO24
+GPIO10 (19) (20) GND   
+ GPIO9 (21) (22) GPIO25
+GPIO11 (23) (24) GPIO8 
+   GND (25) (26) GPIO7 
+ GPIO0 (27) (28) GPIO1 
+ GPIO5 (29) (30) GND   
+ GPIO6 (31) (32) GPIO12
+GPIO13 (33) (34) GND   
+GPIO19 (35) (36) GPIO16
+GPIO26 (37) (38) GPIO20
+   GND (39) (40) GPIO21
+"""
+
+class Device(AbstractEnum):
+    """ Device = (Configcode, GPIO_PIN) for mode = GPIO.BOARD """
+    PUMP_1 = ("P1", 7)
+    VENT_1 = ("V1", 8)
+
+
+class State(AbstractEnum):
+    TURNED_ON = ("ON", )
+    TURNED_OFF = ("OFF", )
+
+
+class DeviceState:
+    def __init__(self, device: Device, state: State):
+        self.device = device
+        self.state = state
 
 
 def turn_on_device(device_state: DeviceState):
     """Turn on the specified device"""
-    None
+    # Low voltage means that the relay is switched on
+    GPIO.output(device_state.device.value[1], GPIO.LOW)
     device_state.state = State.TURNED_ON
 
-
+  
 def turn_off_device(device_state: DeviceState):
     """Turn off the specified device"""
-    None
+    # High voltage means that the relay is not switched on
+    GPIO.output(device_state.device.value[1], GPIO.HIGH)
     device_state.state = State.TURNED_OFF
 
 
-def build_eventlist_from_schedules(schedules) -> list[Event]:
-    """build eventlist from configured schedules, ordered by time"""
-    events: list[Event] = []
-    for schedule in schedules['schedules']:
-        start_time = dt.datetime.strptime(schedule['starttime'], '%H:%M:%S').time()
-        dur = dt.datetime.strptime(schedule['duration'], '%H:%M:%S')
-        td = dt.timedelta(hours=dur.hour, minutes=dur.minute, seconds=dur.second)
-        end_time = dt.datetime.combine(dt.date.today(), start_time) + td
-
-        events.append(Event(start_time=start_time,
-                            end_time=end_time.time(),
-                            device=Device.get_from_code(schedule["device"]),
-                            action=Action.TURN_ON
-                            )
-                      )
-        events.append(Event(start_time=end_time.time(),  # does not work if the endtime is on the next day
-                            end_time=None,
-                            device=Device.get_from_code(schedule["device"]),
-                            action=Action.TURN_OFF
-                            )
-                      )
-    events.sort(key=lambda e: e.start_time)
-    return events
-
-
-# init
-device_states = {
-    Device.PUMP_1: DeviceState(device=Device.PUMP_1, state=State.TURNED_OFF),
-    Device.VENT_1: DeviceState(device=Device.VENT_1, state=State.TURNED_OFF),
-}
-
-
-events: list[Event] = None
-while True:
-    # load the schedules
-    with open("schedules.json", "r") as f:
-        schedules = json.load(f)
-
-    # build eventlist from configured schedules, ordered by time
-    # why? in order to know how long the process can sleep till the next event
-    events = build_eventlist_from_schedules(schedules)
-    
-    now = dt.datetime.now().time()
-    for event in events:
-        if event.action == Action.TURN_ON:  # TURN_ON has start and end time
-            if time_in_range(event.start_time, event.end_time, now):
-                if device_states.get(event.device).state == State.TURNED_OFF:
-                    turn_on_device(device_states.get(event.device))
-            else:  # outside of turned on timerange turn it off
-                if device_states.get(event.device).state == State.TURNED_ON:
-                    turn_off_device(device_states.get(event.device))
-
-        # ToDo: get the time till the next event and set the process to sleep accordingly
-
-    time.sleep(time_till_next_event(events))
-    # ToDo: check if events actually where triggered
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+# initialisation
+GPIO.setmode(GPIO.BOARD)
+GPIO.setup(Device.PUMP_1.value[1], GPIO.OUT)
+# High voltage means that the relay is not switched on
+GPIO.output(Device.PUMP_1.value[1], GPIO.HIGH)
+GPIO.setup(Device.VENT_1.value[1], GPIO.OUT)
+GPIO.output(Device.VENT_1.value[1], GPIO.HIGH)
 
 
 if __name__ == '__main__':
-    print_hi('there')
 
+    for i in range(3):
+        GPIO.output(7, GPIO.LOW)
+        time.sleep(0.5)
+        
+        GPIO.output(7, GPIO.HIGH)
+        time.sleep(0.5)
