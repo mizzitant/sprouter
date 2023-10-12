@@ -21,7 +21,7 @@ J8:
    3V3  (1) (2)  5V      (1)-> Relayboard VCC, (2)-> Relayboard JD-VCC
  GPIO2  (3) (4)  5V    
  GPIO3  (5) (6)  GND   
- GPIO4  (7) (8)  GPIO14  (7)-> Relayboard IN1 (PUMP_1), (8)-> Relayboard IN1 (VENT_1)
+ GPIO4  (7) (8)  GPIO14  (7)-> Relayboard IN1 (PUMP_1), (8)-> Relayboard IN2 (VENT_1)
    GND  (9) (10) GPIO15
 GPIO17 (11) (12) GPIO18
 GPIO27 (13) (14) GND   
