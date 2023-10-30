@@ -12,8 +12,8 @@ class AbstractEnum(enum.Enum):
 
 
 class Action(AbstractEnum):
-    TURN_ON = ("1", )
-    TURN_OFF = ("2", )
+    TURN_ON = ("1",)
+    TURN_OFF = ("2",)
 
 
 class Device(AbstractEnum):
@@ -25,8 +25,8 @@ class Device(AbstractEnum):
 
 
 class State(AbstractEnum):
-    TURNED_ON = ("ON", )
-    TURNED_OFF = ("OFF", )
+    TURNED_ON = ("ON",)
+    TURNED_OFF = ("OFF",)
 
 
 class DeviceState:
@@ -41,13 +41,19 @@ def turn_on_device(device_state: DeviceState):
     GPIO.output(device_state.device.value[1], GPIO.LOW)
     device_state.state = State.TURNED_ON
 
-  
+
 def turn_off_device(device_state: DeviceState):
     """Turn off the specified device"""
     # High voltage means that the relay is not switched on
     GPIO.output(device_state.device.value[1], GPIO.HIGH)
     device_state.state = State.TURNED_OFF
 
+
+# init
+device_states = {
+    Device.PUMP_1: DeviceState(device=Device.PUMP_1, state=State.TURNED_OFF),
+    Device.VENT_1: DeviceState(device=Device.VENT_1, state=State.TURNED_OFF),
+}
 
 # initialisation
 GPIO.setmode(GPIO.BOARD)
@@ -57,12 +63,12 @@ GPIO.output(Device.PUMP_1.value[1], GPIO.HIGH)
 GPIO.setup(Device.VENT_1.value[1], GPIO.OUT)
 GPIO.output(Device.VENT_1.value[1], GPIO.HIGH)
 
-
 if __name__ == '__main__':
+    # Set low voltage to switch the relay to NO (Normally Open) = Turn on
+    GPIO.output(Device.VENT_1, GPIO.LOW)
+    GPIO.output(Device.PUMP_1, GPIO.LOW)
+    time.sleep(10)
 
-    for i in range(3):
-        GPIO.output(7, GPIO.LOW)
-        time.sleep(0.5)
-        
-        GPIO.output(7, GPIO.HIGH)
-        time.sleep(0.5)
+    GPIO.output(Device.VENT_1, GPIO.HIGH)
+    GPIO.output(Device.PUMP_1, GPIO.HIGH)
+    time.sleep(10)
