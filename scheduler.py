@@ -5,7 +5,7 @@ import time
 from typing import NamedTuple, Dict, Optional
 
 from device_handler import Action, Device, DeviceState, State
-from device_handler import turn_on_device, turn_off_device
+from device_handler import turn_on_device, turn_off_device, device_states
 
 
 class Event(NamedTuple):
@@ -65,13 +65,6 @@ def build_eventlist_from_schedules(schedules) -> list[Event]:
     return events
 
 
-# init
-device_states = {
-    Device.PUMP_1: DeviceState(device=Device.PUMP_1, state=State.TURNED_OFF),
-    Device.VENT_1: DeviceState(device=Device.VENT_1, state=State.TURNED_OFF),
-}
-
-
 events: list[Event] = None
 while True:
     # load the schedules
@@ -81,7 +74,7 @@ while True:
     # build eventlist from configured schedules, ordered by time
     # why? in order to know how long the process can sleep till the next event
     events = build_eventlist_from_schedules(schedules)
-    
+
     now = dt.datetime.now().time()
     for event in events:
         if event.action == Action.TURN_ON:  # TURN_ON has start and end time
@@ -97,6 +90,7 @@ while True:
     time.sleep(time_till_next_event(events))
     # ToDo: check if events actually where triggered
 
+
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
     print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
@@ -104,4 +98,3 @@ def print_hi(name):
 
 if __name__ == '__main__':
     print_hi('there')
-
