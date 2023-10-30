@@ -26,8 +26,10 @@ def time_in_range(start: time, end: time, x: time) -> bool:
 def time_till_next_event(events: list[Event]):
     """calculate the time from now till the next closest event"""
     # max sleeping intervall is from now till next day
-    next_sleep_interval = dt.timedelta(hours=24)- dt.datetime.now()
-    
+    end_of_day = dt.datetime.now().replace(
+        hour=23, minute=59, second=59, microsecond=999999)
+    next_sleep_interval = end_of_day - dt.datetime.now()
+
     for event in events:
         now = dt.datetime.now()
         event_time = dt.datetime.combine(dt.date.today(), event.start_time)
